@@ -5,10 +5,16 @@
  */
 package io.debezium.connector.jdbc;
 
+import static io.debezium.connector.jdbc.naming.RecordKeyTableNamingStrategy.DBZ_PHYSICAL_TABLE_IDENTIFIER;
+import static org.apache.kafka.connect.data.SchemaBuilder.string;
+import static org.apache.kafka.connect.data.SchemaBuilder.struct;
 import static org.fest.assertions.Assertions.assertThat;
 
 import java.util.Map;
 
+import io.debezium.connector.jdbc.naming.RecordKeyTableNamingStrategy;
+import org.apache.kafka.connect.data.Schema;
+import org.apache.kafka.connect.data.SchemaBuilder;
 import org.apache.kafka.connect.errors.DataException;
 import org.apache.kafka.connect.sink.SinkRecord;
 import org.junit.jupiter.api.Assertions;
@@ -87,5 +93,22 @@ public class TableNamingStrategyTest {
         final DefaultTableNamingStrategy strategy = new DefaultTableNamingStrategy();
         SinkRecord sinkRecord = factory.tombstoneRecord("database.schema.table");
         assertThat(strategy.resolveTableName(config, sinkRecord)).isEqualTo("kafka_database_schema_table");
+    }
+
+    @Test
+    public void testRecordKeyTableNameStrategy() {
+        final JdbcSinkConnectorConfig config = new JdbcSinkConnectorConfig(Map.of());
+        final SinkRecordFactory factory = new DebeziumSinkRecordFactory();
+        final RecordKeyTableNamingStrategy strategy = new RecordKeyTableNamingStrategy();
+        final Schema keySchema = struct().field(DBZ_PHYSICAL_TABLE_IDENTIFIER, string().required().build()).build();
+
+        SinkRecord sinkRecord = factory.createBuilder().flat(true)
+                .key(DBZ_PHYSICAL_TABLE_IDENTIFIER, "mcapi.configuration.networkContracts")
+                .keySchema(keySchema)
+                .recordSchema(struct().build())
+                .sourceSchema(struct().build())
+                .build();
+
+        assertThat(strategy.resolveTableName(config, sinkRecord)).isEqualTo("mcapi_configuration_networkContracts");
     }
 }
